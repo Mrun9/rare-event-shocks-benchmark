@@ -1,6 +1,11 @@
 # Data directory (downloaded & cached locally)
 data/
 
+# Generation and build scripts
+build_*.py
+make_*.py
+*.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
