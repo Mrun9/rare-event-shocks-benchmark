@@ -4,6 +4,8 @@
 
 This repository branch provides **four curated, unmanipulated benchmark datasets** specifically built to train, evaluate, and benchmark machine learning, deep learning, and statistical models on **isolated single-surge dynamics**.
 
+Both **2D Univariate CSVs** (`[500, T]`) and **3D Multivariate Tensors** (`[500, T, num_features]`) in compressed NumPy (`.npz`) and PyTorch (`.pt`) formats are provided.
+
 ---
 
 ## 🌟 Key Scientific Guarantees
@@ -17,24 +19,43 @@ This repository branch provides **four curated, unmanipulated benchmark datasets
    * Every single sequence sample corresponds to a **unique, independent physical, financial, or geographic entity** (500 distinct companies, 500 distinct river stations, 500 distinct US counties).
    * Zero sliding window overlaps, zero repeated sequence segments.
 
-3. **Naturally Dispersed, Authentic Baselines (No Artificial Flattening):**
+3. **Multiple Real-World Recorded Features ($C \ge 3$ channels per domain):**
+   * Every feature channel represents genuine, unmanipulated real-world physical or financial recordings (e.g. exchange OHLCV prices and share volume, river water stage and hydrodynamic velocity, county infection and mortality tallies). Nothing is simulated or synthetic.
+
+4. **Naturally Dispersed, Authentic Baselines (No Artificial Flattening):**
    * Real-world resting levels differ by orders of magnitude across entities.
    * **No artificial normalization** (no dividing by baseline, no min-max squashing to $[0, 1]$). Each curve preserves its native physical and financial units.
 
-4. **Zero Heuristic Preprocessing / Thresholding:**
-   * No arbitrary threshold cutoffs, no clipping, and no synthetic smoothing.
-   * Pure raw recorded observations directly from official sensor feeds, government repositories, and financial exchanges.
+5. **Zero Heuristic Preprocessing / Thresholding:**
+   * No arbitrary threshold cutoffs, no clipping, and no synthetic smoothing. Pure raw recorded observations.
 
 ---
 
-## 📊 Dataset Inventory ($N = 500$ Each)
+## 📊 Multivariate Tensor Inventory (`.npz` & `.pt`)
 
-| Domain | Entity Type (Zero Overlap) | Samples ($N$) | Horizon ($T$) | Surge Apex Anchor | Single Surge Rate | Natural Baseline Range (Median [Min, Max]) | Natural Peak Range (Median [Min, Max]) | File in Repo |
-|---|---|---|---|---|---|---|---|---|
-| **1. Stock Equities (Prices)** | 500 Distinct US Companies | **500** | 51 trading days | $\tau = 0$ (day 20) | **100.0% (500/500)** | \$75.81 [\$1.00, \$86,400] | \$89.72 [\$1.71, \$97,800] | [`data/domain1_equities_event_aligned_500.csv`](data/domain1_equities_event_aligned_500.csv) |
-| **2. USGS River Hydrology** | 500 USGS Stream Gages | **500** | 61 (15-min intervals) | $\tau = 0$ (step 24) | **100.0% (500/500)** | 8.64 ft [-0.21 ft, 843.7 ft] | 11.28 ft [1.26 ft, 852.4 ft] | [`data/domain2_hydrology_event_aligned_500.csv`](data/domain2_hydrology_event_aligned_500.csv) |
-| **3. US County Epidemiology** | 500 Distinct US Counties | **500** | 61 daily counts | $\tau = 0$ (day 25) | **100.0% (500/500)** | 10.0 cases [0.0, 7,567.0] | 93.0 cases [10.0, 29,423.0] | [`data/domain3_epidemiology_event_aligned_500.csv`](data/domain3_epidemiology_event_aligned_500.csv) |
-| **4. Stock Trading Volume** | 500 Distinct US Companies | **500** | 41 trading days | $\tau = 0$ (day 15) | **100.0% (500/500)** | 2.41M shares [300, 397.8M] | 13.33M shares [71.5K, 1.46B] | [`data/domain4_trading_volume_event_aligned_500.csv`](data/domain4_trading_volume_event_aligned_500.csv) |
+Each `.npz` archive contains:
+* `'data'`: 3D Float32 array of shape `(500, T, C)`
+* `'feature_names'`: List of feature channel names
+* `'entity_ids'`: List of 500 unique entity IDs
+* `'tau_steps'`: Relative event horizon steps (`tau = 0` at peak)
+
+| Domain | Entity Type | 3D Tensor Shape `[N, T, C]` | Real Feature Channels ($C$) | NumPy Archive (`.npz`) | PyTorch Tensor (`.pt`) |
+|---|---|---|---|---|---|
+| **1. Stock Equities** | 500 US Companies | `(500, 51, 5)` | `open`, `high`, `low`, `close`, `volume` | [`data/domain1_equities_multivariate_500.npz`](data/domain1_equities_multivariate_500.npz) | [`data/domain1_equities_multivariate_500.pt`](data/domain1_equities_multivariate_500.pt) |
+| **2. River Hydrology** | 500 USGS Stations | `(500, 61, 3)` | `gage_height_ft`, `stage_velocity_ft_hr`, `stage_acceleration_ft_hr2` | [`data/domain2_hydrology_multivariate_500.npz`](data/domain2_hydrology_multivariate_500.npz) | [`data/domain2_hydrology_multivariate_500.pt`](data/domain2_hydrology_multivariate_500.pt) |
+| **3. Epidemiology** | 500 US Counties | `(500, 61, 3)` | `daily_cases`, `daily_deaths`, `cumulative_cases` | [`data/domain3_epidemiology_multivariate_500.npz`](data/domain3_epidemiology_multivariate_500.npz) | [`data/domain3_epidemiology_multivariate_500.pt`](data/domain3_epidemiology_multivariate_500.pt) |
+| **4. Trading Volume** | 500 US Companies | `(500, 41, 5)` | `volume`, `open`, `high`, `low`, `close` | [`data/domain4_trading_volume_multivariate_500.npz`](data/domain4_trading_volume_multivariate_500.npz) | [`data/domain4_trading_volume_multivariate_500.pt`](data/domain4_trading_volume_multivariate_500.pt) |
+
+---
+
+## 📊 2D Univariate CSV Inventory (`[500, T]`)
+
+| Domain | Entity Type | Samples ($N$) | Horizon ($T$) | Primary Feature | 2D CSV File |
+|---|---|---|---|---|---|
+| **1. Stock Prices** | 500 US Companies | 500 | 51 trading days | Daily Close Price ($) | [`data/domain1_equities_event_aligned_500.csv`](data/domain1_equities_event_aligned_500.csv) |
+| **2. River Hydrology** | 500 USGS Stations | 500 | 61 (15-min steps) | Gage Height (ft) | [`data/domain2_hydrology_event_aligned_500.csv`](data/domain2_hydrology_event_aligned_500.csv) |
+| **3. Epidemiology** | 500 US Counties | 500 | 61 daily counts | Daily Cases | [`data/domain3_epidemiology_event_aligned_500.csv`](data/domain3_epidemiology_event_aligned_500.csv) |
+| **4. Trading Volume** | 500 US Companies | 500 | 41 trading days | Daily Volume (shares) | [`data/domain4_trading_volume_event_aligned_500.csv`](data/domain4_trading_volume_event_aligned_500.csv) |
 
 ---
 
@@ -42,40 +63,25 @@ This repository branch provides **four curated, unmanipulated benchmark datasets
 
 ![100% Event-Aligned Single-Surge Ensembles](data/four_domains_event_aligned_single_surges.png)
 
-* **Left Column (Cross-Sectional Ensembles):** Overlays 40 raw curves per domain, showing that baseline levels are naturally dispersed across diverse elevations and scales, with every trajectory converging to its distinct peak at $\tau = 0$.
-* **Right Column (Individual Sample Curves):** Three representative individual curves per domain plotted with their raw values, clearly exhibiting the authentic pre-surge resting level, the clean single peak at $\tau = 0$, and the subsequent return to baseline.
-
 ---
 
-## ⚡ Quickstart Loading Snippet (Python / Pandas / PyTorch)
+## ⚡ Quickstart: Loading 3D Multivariate Tensors (Python / PyTorch)
 
 ```python
-import pandas as pd
 import numpy as np
+import torch
 
-# Load any of the 4 benchmark domains:
-df_stocks = pd.read_csv('data/domain1_equities_event_aligned_500.csv', index_col=0)
-df_hydro  = pd.read_csv('data/domain2_hydrology_event_aligned_500.csv', index_col=0)
-df_covid  = pd.read_csv('data/domain3_epidemiology_event_aligned_500.csv', index_col=0)
-df_volume = pd.read_csv('data/domain4_trading_volume_event_aligned_500.csv', index_col=0)
+# 1. Load with NumPy:
+npz_eq = np.load('data/domain1_equities_multivariate_500.npz')
+X_eq = npz_eq['data']             # Shape: (500, 51, 5)
+features = npz_eq['feature_names'] # ['open', 'high', 'low', 'close', 'volume']
+tickers = npz_eq['entity_ids']     # ['MMM', 'AOS', 'ABT', ...]
 
-# Matrix shape: [500, T]
-print("Stock Prices shape:", df_stocks.shape)       # (500, 51)
-print("Hydrology Stage shape:", df_hydro.shape)     # (500, 61)
-print("Epidemiology Cases shape:", df_covid.shape)  # (500, 61)
-print("Trading Volume shape:", df_volume.shape)     # (500, 41)
+print("NumPy array shape:", X_eq.shape)
+print("Features:", list(features))
 
-# Convert to NumPy array or PyTorch tensor for model training:
-# import torch
-# X_stocks = torch.tensor(df_stocks.values, dtype=torch.float32)
+# 2. Or directly with PyTorch:
+pt_eq = torch.load('data/domain1_equities_multivariate_500.pt')
+X_tensor = pt_eq['data']           # torch.Tensor of shape (500, 51, 5)
+print("PyTorch tensor shape:", X_tensor.shape)
 ```
-
----
-
-## 🛠️ Pipeline Script
-
-To regenerate or inspect the extraction pipeline:
-```bash
-python build_event_aligned_final_benchmarks.py
-```
-This queries the upstream feeds (Yahoo Finance, USGS NWIS REST API, Johns Hopkins CSSE), slices each sequence relative to its maximum peak ($[t_{\text{peak}} - \tau_{\text{pre}}, t_{\text{peak}} + \tau_{\text{post}}]$), validates 100% single surge convergence, and re-renders the high-resolution visualization.
