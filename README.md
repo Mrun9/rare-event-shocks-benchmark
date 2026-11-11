@@ -6,10 +6,12 @@ This branch provides the reworked **Multi-Storm Hourly River Flood Dataset** (`N
 
 ---
 
-## 📓 Walkthrough Notebook & Datasets
+## 📓 Notebooks & Datasets
 
-* **Interactive Notebook (Recommended starting point):** [`18_explore_reworked_hydrology_benchmark.ipynb`](18_explore_reworked_hydrology_benchmark.ipynb)
-  * Loads the full tensor bundle, tests derived features and inspects the correlation matrix to justify dropping redundant variables (`r > 0.90`), generates the clean non-redundant CSV, lists all `past` vs. `past_future` roles, verifies the chronological `train`/`test` split, and visualizes single-river and cross-sectional trajectories.
+* **Data Prep & Correlation Pruning Notebook:** [`18_explore_reworked_hydrology_benchmark.ipynb`](18_explore_reworked_hydrology_benchmark.ipynb)
+  * Loads the full tensor bundle, tests derived features and inspects the correlation matrix to justify dropping redundant variables (`r > 0.90`), generates the clean non-redundant CSV, lists all `past` vs. `past_future` roles, and verifies the chronological `train`/`test` split.
+* **Feature-by-Feature Visualization Notebook:** [`19_visualize_hydrology_features.ipynb`](19_visualize_hydrology_features.ipynb)
+  * Uses `data/reworked_hydrology_simple.csv` with simple, well-commented code to generate the 4-panel overview plot, per-feature before/after $\tau=0$ grid (`data/reworked_hydrology_all_features_around_surge.png`), single-river multi-feature walkthrough, and before/after summary table.
 * **Clean Non-Redundant CSV (Ready to use):** [`data/reworked_hydrology_simple.csv`](data/reworked_hydrology_simple.csv) (`72,500` rows = `500` rivers × `145` hours; `19` columns; `0` missing values; max off-diagonal `|r| = 0.766`).
 * **Full Raw Bundle (All 17 dynamic + 4 static features):**
   * [`data/reworked_domain2_hydrology_storm_onset_hourly.npz`](data/reworked_domain2_hydrology_storm_onset_hourly.npz)
@@ -49,9 +51,11 @@ This branch provides the reworked **Multi-Storm Hourly River Flood Dataset** (`N
 
 ---
 
-## 🖼️ Before & After Storm Onset ($\tau = 0$)
+## 🖼️ Visualizations Around Storm Onset ($\tau = 0$)
 
-![Before and After Storm Onset Overview](data/reworked_hydrology_simple_overview.png)
+![4-Panel Overview Verification](data/reworked_domain2_hydrology_verification.png)
+
+![All Features Around Storm Onset](data/reworked_hydrology_all_features_around_surge.png)
 
 ---
 
