@@ -1,79 +1,54 @@
-# ⚡ Reworked Power Grid Demand Surge Benchmark (Daily, Weather-Onset Aligned)
+# Daily Power Grid Demand Single-Surge Onset Benchmark (`reworked-power-grid-onset`)
 
-Multi-region U.S. electricity demand benchmark built for **surge / disruption time-series forecasting** around extreme thermal weather onsets ($\tau = 0$: heatwaves and Arctic freezes). Using **daily mean resolution (`[-14d, +14d]`)** eliminates the 24-hour diurnal cycle so each event forms **one clean single surge** above a flat 2-week pre-onset baseline, with strict chronological separation (`2021–2023` Train vs. `2024` Test), raw physical MW units, and explicit `past_only` vs. `past_future` vs. `static` covariate roles.
-
-![Power Grid Benchmark Verification](data/power_grid_verification.png)
+Daily US Balancing Authority (EIA-930) electricity demand surges paired with Open-Meteo daily weather telemetry around heatwave and cold-snap onset days (`N = 286` single-surge events, `T = 29` days per window, `tau_day in [-14, +14]`).
 
 ---
 
-## Notebooks & Datasets
+## Dataset Overview
 
-| File | Description | Size / Shape |
-| :--- | :--- | :--- |
-| [`01_power_grid_dataset_and_correlation.ipynb`](01_power_grid_dataset_and_correlation.ipynb) | Loads full dataset, engineers `thermal_discomfort_c = \|temp_c - 18.0\|`, uses the 19-feature correlation matrix (`\|r\| > 0.90`) to justify pruning 6 redundant features, saves `power_grid_simple.csv`, documents covariate roles, checks chronological split, and plots before/after load surge. | 15 cells (executed) |
-| [`02_power_grid_visualize_features_around_onset.ipynb`](02_power_grid_visualize_features_around_onset.ipynb) | Commented, readable visualization walkthrough built strictly on `power_grid_simple.csv` (4-panel single-surge overview, 13-feature grid around $\tau = 0$, heatwave vs. freeze split, ERCOT Jan 2024 freeze trace, before/after summary table). | 11 cells (executed) |
-| `data/power_grid_simple.csv` | **Recommended modeling & EDA table:** `286` extreme weather events across `48+` US Balancing Authorities $\times$ `29` days ($\tau_{\text{day}} \in [-14, +14]$), zero redundant features ($\max \|r\| = 0.780$, max $\text{VIF} = 5.06$), 0 NaNs. | `8,294 rows x 24 cols` (`1.53 MB`) |
-| `data/reworked_power_grid_daily.npz` / `.pt` | Pre-split multivariate tensors containing all 18 full candidate dynamic channels (`past_covariates`, `past_future_covariates`), `static_features`, `tau_steps`, `train_mask`, and `test_mask`. | `(286, 29, F)` |
-| `data/reworked_power_grid_metadata.csv` | One row per event window with Balancing Authority, region, `event_type` (`heatwave`/`freeze`), `onset_date`, baseline MW, peak MW, and peak surge ratio. | `286 rows x 15 cols` |
+- **Events (`N`):** `286` daily single-surge grid load windows (`8,294` total rows; zero `NaN` values)
+- **Window Resolution (`T`):** `29` daily steps (`tau_day = -14` to `+14`, relative to surge onset day `tau_day = 0`), eliminating 24-hour diurnal sawtooth oscillations
+- **Chronological Split (Zero Temporal Leakage):** `max train end = 2023-12-12 < min test start = 2023-12-19`
+  - **Train (`2021–2023`):** `219` events across `48` Balancing Authorities (`80` heatwaves, `139` freezes) — median baseline `2,660.8 MW`, median peak `3,435.0 MW` (`1.245x`)
+  - **Test (`2024`):** `67` events across `39` Balancing Authorities (`31` heatwaves, `36` freezes) — median baseline `3,238.6 MW`, median peak `4,642.0 MW` (`1.300x`)
 
 ---
 
-## Data Sources (Public Archives)
+## Feature Hygiene & Correlation Pruning
 
-1. **U.S. EIA-930 Electric Grid Monitor (`EIA930_BALANCE` 2021–2024)** — Hourly demand, forecast, net generation, interchange, and fuel-source generation aggregated cleanly to daily local-date averages.
-2. **NASA POWER (`MERRA-2` Reanalysis)** — Daily mean 2m air temperature, relative humidity, downward shortwave solar irradiance, 10m wind speed, and surface pressure at each Balancing Authority's centroid.
-3. **Electricity Maps / EIA Capacity Metadata** — Balancing Authority centroids (`latitude`, `longitude`) and installed nameplate generation capacity (`installed_cap_mw`).
+To keep physical signal high without cherry-picking events or altering raw demand values:
 
----
+1. **Feature Hygiene Cleanup:** Dropped flat, near-zero, or terrain-noise covariates (`solar_share`, `wind_share`, `wind_ms`, `pressure_hpa`) while retaining all `286` surge events.
+2. **Collinearity Pruning (`|r| > 0.90`):** From `15` candidate dynamic covariates, `6` redundant features were dropped (`demand_forecast_mw`, `net_gen_mw`, `load_rolling_mean_7d`, `gas_gen_mw`, `coal_gen_mw`, `apparent_temp_c`).
+3. **Final Retained Schema (`20` columns in `data/power_grid_simple.csv`):**
+   - **4 Past-Only Dynamic Features:** `load_mw` (target), `load_change_1d`, `gas_share`, `import_share`
+   - **5 Past-Future Known Dynamic Features:** `temp_c`, `thermal_discomfort_c`, `humidity_pct`, `solar_wm2`, `day_of_week`
+   - **3 Static Balancing Authority Features:** `latitude`, `longitude`, `installed_cap_mw`
+   - **8 Event Metadata Columns:** Event identifiers, Balancing Authority code, weather regime (`heatwave`/`freeze`), timestamps, and split labels
+   - **Multicollinearity Diagnostics:** Max off-diagonal `|r| = 0.780`, Max `VIF = 4.68` (`temp_c`)
 
-## Feature Roles (Simple Clean CSV: 13 Dynamic + 3 Static + 8 Metadata)
+### Pre-Onset (`tau_day < 0`) vs Post-Onset (`tau_day >= 0`) Medians
 
-Correlation pruning on the 19 candidate dynamic features removed **6 redundant scale/temperature duplicates** where $|r| > 0.90$: `demand_forecast_mw` ($r = +0.999$), `net_gen_mw` ($r = +0.997$), `load_rolling_mean_7d` ($r = +0.996$), `gas_gen_mw` ($r = +0.969$), `coal_gen_mw` ($r = +0.910$), and `apparent_temp_c` ($r = +0.991$ vs. `temp_c`). Scale-invariant fuel shares (`gas_share`, `solar_share`, `wind_share`, `import_share`) replace raw MW counts cleanly ($\max |r| = 0.780$, $\max \text{VIF} = 5.06$).
-
-### Dynamic `past_only` Covariates (6 channels — observed up to $\tau_{\text{day}} = 0$)
-| Column | Meaning & Unit |
-| :--- | :--- |
-| `load_mw` | **[TARGET]** Daily mean system electricity demand (`Demand (MW)`, EIA-930) |
-| `load_change_1d` | 1-day backward load change (`load[d] - load[d-1]`, MW/day) |
-| `gas_share` | Natural gas fraction of net generation (`0–1`) |
-| `solar_share` | Utility solar PV fraction of net generation (`0–1`) |
-| `wind_share` | Wind fraction of net generation (`0–1`) |
-| `import_share` | Net electricity import ratio (`-interchange / load`) |
-
-### Dynamic `past_future` Covariates (7 channels — weather forecasts & calendar)
-| Column | Meaning & Unit |
-| :--- | :--- |
-| `temp_c` | Daily mean 2m air temperature (°C, NASA POWER MERRA-2) |
-| `thermal_discomfort_c` | Absolute departure from 18 °C comfort baseline (`\|temp_c - 18.0\|` °C) |
-| `humidity_pct` | Daily mean 2m relative humidity (%) |
-| `solar_wm2` | Daily mean shortwave solar irradiance (W/m²) |
-| `wind_ms` | Daily mean 10m wind speed (m/s) |
-| `pressure_hpa` | Daily mean surface barometric pressure (hPa) |
-| `day_of_week` | Day of week (`0=Mon .. 6=Sun`) |
-
-### Static & Metadata Columns
-- **Static (`3`):** `latitude`, `longitude`, `installed_cap_mw`.
-- **Metadata (`8`):** `sample_id`, `ba`, `region`, `split`, `event_type`, `onset_date`, `date`, `tau_day` (`-14` to `+14`).
+| Feature | Role | Pre-Onset Median | Post-Onset Median | Notes |
+| :--- | :--- | ---: | ---: | :--- |
+| `load_mw` | `PAST-ONLY (TARGET)` | `2797.81` | `3080.21` | Peak `3070.54 -> 3562.96` (`+282.40`) |
+| `load_change_1d` | `PAST-ONLY` | `4.25` | `-2.75` | Peak `276.38 -> 398.08` |
+| `gas_share` | `PAST-ONLY` | `0.30` | `0.32` | Shift `+0.02` |
+| `import_share` | `PAST-ONLY` | `0.05` | `0.06` | Shift `+0.02` |
+| `temp_c` | `PAST-FUTURE` | `10.96` | `6.99` | Shift `-3.97` |
+| `thermal_discomfort_c` | `PAST-FUTURE` | `10.18` | `13.68` | Peak `13.82 -> 18.70` (`+3.51`) |
+| `humidity_pct` | `PAST-FUTURE` | `76.42` | `72.91` | Shift `-3.51` |
+| `solar_wm2` | `PAST-FUTURE` | `134.85` | `144.77` | Shift `+9.92` |
+| `day_of_week` | `PAST-FUTURE` | `3.00` | `3.00` | Calendar weekday |
 
 ---
 
-## Chronological Split Summary
+## Repository Contents
 
-| Split | Events ($N$) | Unique BAs | Heatwaves | Freezes | Earliest Window | Latest Window | Median Baseline (MW) | Median Peak (MW) | Median Peak Ratio |
-| :--- | :---: | :---: | :---: | :---: | :--- | :--- | :---: | :---: | :---: |
-| **Train** (`2021–2023`) | `219` | `48` | `80` | `139` | `2021-01-10` | `2023-12-12` | `2,660.8` | `3,435.0` | `1.245x` |
-| **Test** (`2024`) | `67` | `39` | `31` | `36` | `2023-12-19` | `2024-12-24` | `3,238.6` | `4,642.0` | `1.300x` |
-
-- Zero window overlap (minimum `25-day` spacing within any BA) and strict chronological separation (`max train date 2023-12-12 < min test date 2023-12-19`).
-
----
-
-## Quickstart
-
-```python
-import pandas as pd
-
-df = pd.read_csv("data/power_grid_simple.csv")
-train_df = df[df["split"] == "train"]
-test_df = df[df["split"] == "test"]
-```
+- `01_power_grid_dataset_and_correlation.ipynb` — Loads full arrays, engineers `thermal_discomfort_c`, prunes `|r| > 0.90` pairs, verifies VIF and zero chronological overlap, and exports `power_grid_simple.csv` plus compressed `.npz` / `.pt` tensors.
+- `02_power_grid_visualize_features_around_onset.ipynb` — Reads `data/power_grid_simple.csv` to plot the `3 x 4` aligned onset grid (`train` vs `test`), an individual `ERCO 2024-01-14` freeze event trace, and prints pre/post-onset summary statistics.
+- `data/power_grid_simple.csv` (`1.24 MB`, `8,294 x 20`) — Clean tabular CSV of all `286` events.
+- `data/reworked_power_grid_daily.npz` (`372.8 KB`) & `data/reworked_power_grid_daily.pt` (`507.9 KB`) — Ready-to-train tensor bundles.
+- `data/power_grid_correlation_matrix.png` — Correlation matrix before/after pruning.
+- `data/power_grid_all_features_around_surge.png` — `3 x 4` median + IQR panel grid across all `9` retained features plus metadata summaries.
+- `data/power_grid_single_region_features.png` — Single-region `ERCO` (`2024-01-14`) freeze event trace.
